@@ -24,12 +24,13 @@ export default function RootLayout() {
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <QueryClientProvider client={queryClient}>
-          <View style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
+          <View style={{ flex: 1, backgroundColor: "#F3F4F6", paddingTop: 20 }}>
             <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(protected)" />
+              <Stack.Screen name="order-details" options={{ title: "Order Details", headerShown: true }} />
             </Stack>
           </View>
         </QueryClientProvider>

@@ -10,7 +10,7 @@ export default function WelcomeScreen() {
   if (!isLoaded) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#1E3A8A" />
+        <ActivityIndicator size="large" color="#fff" />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#1E3A8A",
+    color: "#fff",
     fontWeight: "500",
   },
 });

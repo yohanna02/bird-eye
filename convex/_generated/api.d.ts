@@ -16,6 +16,7 @@ import type {
 import type * as http from "../http.js";
 import type * as httpActions from "../httpActions.js";
 import type * as mutations from "../mutations.js";
+import type * as queries from "../queries.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   httpActions: typeof httpActions;
   mutations: typeof mutations;
+  queries: typeof queries;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

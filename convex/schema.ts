@@ -8,7 +8,28 @@ export default defineSchema({
         phoneNumber: v.string(),
     }).index("by_userId", ["userId"]),
     orders: defineTable({
-        name: v.string(),
+        trackingId: v.string(),
         userId: v.string(),
+        driverId: v.optional(v.string()),
+        pickupLocation: v.object({
+            address: v.string(),
+            coordinates: v.object({
+                latitude: v.number(),
+                longitude: v.number(),
+            }),
+        }),
+        deliveryLocation: v.object({
+            address: v.string(),
+            coordinates: v.object({
+                latitude: v.number(),
+                longitude: v.number(),
+            }),
+        }),
+        itemDescription: v.optional(v.string()),
+        weight: v.optional(v.number()),
+        deliveryTime: v.optional(v.string()),
+        specialInstructions: v.optional(v.string()),
+        deliveryFee: v.number(),
+        distanceKm: v.number(),
     }).index("by_userId", ["userId"]),
 });

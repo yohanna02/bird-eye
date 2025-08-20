@@ -1,4 +1,8 @@
-import { AntDesign, MaterialIcons } from "@expo/vector-icons";
+import { api } from "@/convex/_generated/api";
+import { calculateFee, getDistance } from "@/utils/distance";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation as useConexMutation } from "convex/react";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -20,7 +24,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [trackingId, setTrackingId] = useState("");
-  
+
   // Order Form State
   const [pickupLocation, setPickupLocation] = useState({
     address: "",
@@ -35,26 +39,83 @@ export default function OrdersScreen() {
   const [deliveryTime, setDeliveryTime] = useState("");
   const [notes, setNotes] = useState("");
 
-  const handleSubmitOrder = () => {
-    if (!pickupLocation.address || !deliveryLocation.address || !itemDescription) {
-      Alert.alert("Error", "Please fill in all required fields");
-      return;
-    }
-    
-    // Generate a mock tracking ID
-    const mockTrackingId = "BE" + Math.random().toString(36).substr(2, 8).toUpperCase();
-    setTrackingId(mockTrackingId);
-    
-    // Show confirmation modal
-    setShowConfirmationModal(true);
-    
-    // Reset form
-    resetForm();
-  };
+  const placeOrder = useConexMutation(api.mutations.placeOrderMutation);
+
+  // calculate delivery fee
+  const { data } = useQuery({
+    queryKey: [
+      "delivery-fee",
+      `${pickupLocation.coordinates.latitude}-${pickupLocation.coordinates.longitude}`,
+      `${deliveryLocation.coordinates.latitude}-${deliveryLocation.coordinates.longitude}`,
+    ],
+    queryFn: async () => {
+      const distance = await getDistance(
+        `${pickupLocation.coordinates.latitude},${pickupLocation.coordinates.longitude}`,
+        `${deliveryLocation.coordinates.latitude},${deliveryLocation.coordinates.longitude}`
+      );
+
+      if (distance) {
+        return {
+          distance: distance.distanceKm,
+          fee: calculateFee(distance.distanceKm),
+        };
+      }
+
+      return {
+        distance: 0,
+        fee: 0,
+      };
+    },
+  });
+
+  const handleSubmitOrder = useMutation({
+    mutationFn: async () => {
+      if (
+        !pickupLocation.address ||
+        !deliveryLocation.address ||
+        !itemDescription
+      ) {
+        Alert.alert("Error", "Please fill in all required fields");
+        return;
+      }
+
+      // Generate a mock tracking ID
+      const generatedTrackingId =
+        "BE" + Math.random().toString(36).substr(2, 8).toUpperCase();
+      setTrackingId(generatedTrackingId);
+
+      await placeOrder({
+        deliveryFee: data?.fee ?? 0,
+        deliveryLocation,
+        pickupLocation,
+        distanceKm: data?.distance ?? 0,
+        trackingId: generatedTrackingId,
+        itemDescription,
+        deliveryTime,
+        specialInstructions: notes,
+        weight: parseFloat(weight)
+      });
+
+      // Show confirmation modal
+      setShowConfirmationModal(true);
+
+      // Reset form
+      resetForm();
+    },
+    onError: () => {
+      Alert.alert("Error", "Error placing order");
+    },
+  });
 
   const resetForm = () => {
-    setPickupLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
-    setDeliveryLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
+    setPickupLocation({
+      address: "",
+      coordinates: { latitude: 0, longitude: 0 },
+    });
+    setDeliveryLocation({
+      address: "",
+      coordinates: { latitude: 0, longitude: 0 },
+    });
     setItemDescription("");
     setWeight("");
     setDeliveryTime("");
@@ -69,17 +130,13 @@ export default function OrdersScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <AntDesign name="arrowleft" size={24} color="#1E3A8A" />
-          </TouchableOpacity>
           <Text style={styles.title}>Place Order</Text>
-          <Text style={styles.subtitle}>Fill in the details for your delivery</Text>
+          <Text style={styles.subtitle}>
+            Fill in the details for your delivery
+          </Text>
         </View>
 
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -87,7 +144,7 @@ export default function OrdersScreen() {
           {/* Location Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Pickup & Delivery</Text>
-            
+
             <View style={styles.inputContainer}>
               <LocationInput
                 label="Pickup Location"
@@ -112,7 +169,7 @@ export default function OrdersScreen() {
           {/* Item Details Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Item Details</Text>
-            
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>
                 Item Description <Text style={styles.required}>*</Text>
@@ -143,7 +200,7 @@ export default function OrdersScreen() {
           {/* Delivery Preferences Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Delivery Preferences</Text>
-            
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Preferred Delivery Time</Text>
               <TextInput
@@ -173,22 +230,26 @@ export default function OrdersScreen() {
           <View style={styles.pricingSection}>
             <View style={styles.pricingRow}>
               <Text style={styles.pricingLabel}>Base Delivery Fee</Text>
-              <Text style={styles.pricingValue}>$15.00</Text>
+              <Text style={styles.pricingValue}>
+                ₦{(!data?.fee ? 0 : data.fee).toFixed(2)}
+              </Text>
             </View>
             <View style={styles.pricingRow}>
               <Text style={styles.pricingLabel}>Service Fee</Text>
-              <Text style={styles.pricingValue}>$2.50</Text>
+              <Text style={styles.pricingValue}>₦500.00</Text>
             </View>
             <View style={[styles.pricingRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>$17.50</Text>
+              <Text style={styles.totalValue}>
+                ₦{(500 + (!data?.fee ? 0 : data.fee)).toFixed(2)}
+              </Text>
             </View>
           </View>
 
           {/* Submit Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.submitButton}
-            onPress={handleSubmitOrder}
+            onPress={() => handleSubmitOrder.mutate()}
           >
             <MaterialIcons name="send" size={20} color="white" />
             <Text style={styles.submitButtonText}>Place Order</Text>
@@ -199,24 +260,19 @@ export default function OrdersScreen() {
       </KeyboardAvoidingView>
 
       {/* Confirmation Modal */}
-      <Modal
-        visible={showConfirmationModal}
-        animationType="fade"
-        transparent
-      >
+      <Modal visible={showConfirmationModal} animationType="fade" transparent>
         <View style={styles.confirmationOverlay}>
           <View style={styles.confirmationModal}>
             <MaterialIcons name="check-circle" size={60} color="#10B981" />
             <Text style={styles.confirmationTitle}>Order Confirmed!</Text>
             <Text style={styles.confirmationText}>
-              Your delivery order has been placed successfully. A driver will be assigned shortly.
+              Your delivery order has been placed successfully. A driver will be
+              assigned shortly.
             </Text>
-            <Text style={styles.trackingIdText}>
-              Tracking ID: {trackingId}
-            </Text>
-            
+            <Text style={styles.trackingIdText}>Tracking ID: {trackingId}</Text>
+
             <View style={styles.confirmationButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.secondaryConfirmButton}
                 onPress={() => {
                   setShowConfirmationModal(false);
@@ -225,8 +281,8 @@ export default function OrdersScreen() {
               >
                 <Text style={styles.secondaryConfirmButtonText}>Go Home</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.primaryConfirmButton}
                 onPress={() => setShowConfirmationModal(false)}
               >
@@ -251,7 +307,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: "white",
     padding: 20,
-    paddingTop: 10,
+    paddingTop: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
