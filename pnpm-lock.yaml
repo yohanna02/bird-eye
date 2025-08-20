@@ -86,9 +86,6 @@ importers:
       react-native-gesture-handler:
         specifier: ~2.24.0
         version: 2.24.0(react-native@0.79.5(@babel/core@7.28.3)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
-      react-native-google-places-textinput:
-        specifier: ^0.8.0
-        version: 0.8.0(react-native@0.79.5(@babel/core@7.28.3)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
       react-native-maps:
         specifier: ^1.20.1
         version: 1.20.1(react-native-web@0.20.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-native@0.79.5(@babel/core@7.28.3)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
@@ -3631,12 +3628,6 @@ packages:
 
   react-native-gesture-handler@2.24.0:
     resolution: {integrity: sha512-ZdWyOd1C8axKJHIfYxjJKCcxjWEpUtUWgTOVY2wynbiveSQDm8X/PDyAKXSer/GOtIpjudUbACOndZXCN3vHsw==}
-    peerDependencies:
-      react: '*'
-      react-native: '*'
-
-  react-native-google-places-textinput@0.8.0:
-    resolution: {integrity: sha512-yoq2gbEeRN6ABgBiwUIw49JEmo+LXTlvvmv8+0hce4Wp78ke6yVMYzpkCMSdGfNBqhj/j2lVPulWanzdpWhHrw==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -8665,11 +8656,6 @@ snapshots:
       '@egjs/hammerjs': 2.0.17
       hoist-non-react-statics: 3.3.2
       invariant: 2.2.4
-      react: 19.0.0
-      react-native: 0.79.5(@babel/core@7.28.3)(@types/react@19.0.14)(react@19.0.0)
-
-  react-native-google-places-textinput@0.8.0(react-native@0.79.5(@babel/core@7.28.3)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0):
-    dependencies:
       react: 19.0.0
       react-native: 0.79.5(@babel/core@7.28.3)(@types/react@19.0.14)(react@19.0.0)
 
