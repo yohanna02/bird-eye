@@ -52,19 +52,18 @@ export default function RegisterScreen() {
       }
 
       // Create the user account
-      await signUp.create({
+      const user = await signUp.create({
         emailAddress: formData.email,
         password: formData.password,
         firstName: formData.name.split(" ")[0],
-        lastName: formData.name.split(" ").slice(1).join(" ") || "",
+        lastName: formData.name.split(" ").slice(1).join(" ") || ""
       });
-
-      // Add user metadata for user type and phone
+      
       await signUp.update({
         unsafeMetadata: {
-          userType,
-          phone: formData.phone,
-        },
+          type: userType,
+          phoneNumber: formData.phone
+        }
       });
 
       // Prepare email verification
@@ -337,10 +336,15 @@ export default function RegisterScreen() {
             </View>
 
             <TouchableOpacity
-              style={styles.registerButton}
+              style={[styles.registerButton, handleRegister.isPending && styles.registerButtonDisabled]}
               onPress={() => handleRegister.mutate()}
+              disabled={handleRegister.isPending}
             >
-              <Text style={styles.registerButtonText}>Create Account</Text>
+              {handleRegister.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.registerButtonText}>Create Account</Text>
+                )}
             </TouchableOpacity>
           </View>
 
