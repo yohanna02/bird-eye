@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import LocationInput from "../../components/LocationInput";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -20,12 +21,18 @@ export default function HomeScreen() {
   const [trackingId, setTrackingId] = useState("");
   
   // Quick Order Form State
-  const [pickupLocation, setPickupLocation] = useState("");
-  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [pickupLocation, setPickupLocation] = useState({
+    address: "",
+    coordinates: { latitude: 0, longitude: 0 },
+  });
+  const [deliveryLocation, setDeliveryLocation] = useState({
+    address: "",
+    coordinates: { latitude: 0, longitude: 0 },
+  });
   const [itemDescription, setItemDescription] = useState("");
 
   const handleQuickOrder = () => {
-    if (!pickupLocation || !deliveryLocation || !itemDescription) {
+    if (!pickupLocation.address || !deliveryLocation.address || !itemDescription) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
@@ -39,14 +46,14 @@ export default function HomeScreen() {
     setShowConfirmationModal(true);
     
     // Reset form
-    setPickupLocation("");
-    setDeliveryLocation("");
+    setPickupLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
+    setDeliveryLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
     setItemDescription("");
   };
 
   const resetQuickOrderForm = () => {
-    setPickupLocation("");
-    setDeliveryLocation("");
+    setPickupLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
+    setDeliveryLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
     setItemDescription("");
     setShowQuickOrderModal(false);
   };
@@ -137,24 +144,22 @@ export default function HomeScreen() {
 
           <ScrollView style={styles.modalContent}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Pickup Location</Text>
-              <TextInput
-                style={styles.input}
+              <LocationInput
+                label="Pickup Location"
+                value={pickupLocation.address}
+                onLocationSelect={setPickupLocation}
+                required={true}
                 placeholder="Where should we pick up from?"
-                placeholderTextColor="#9CA3AF"
-                value={pickupLocation}
-                onChangeText={setPickupLocation}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Delivery Location</Text>
-              <TextInput
-                style={styles.input}
+              <LocationInput
+                label="Delivery Location"
+                value={deliveryLocation.address}
+                onLocationSelect={setDeliveryLocation}
+                required={true}
                 placeholder="Where should we deliver to?"
-                placeholderTextColor="#9CA3AF"
-                value={deliveryLocation}
-                onChangeText={setDeliveryLocation}
               />
             </View>
 

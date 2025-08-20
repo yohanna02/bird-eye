@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import LocationInput from "../../components/LocationInput";
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -21,15 +22,21 @@ export default function OrdersScreen() {
   const [trackingId, setTrackingId] = useState("");
   
   // Order Form State
-  const [pickupLocation, setPickupLocation] = useState("");
-  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [pickupLocation, setPickupLocation] = useState({
+    address: "",
+    coordinates: { latitude: 0, longitude: 0 },
+  });
+  const [deliveryLocation, setDeliveryLocation] = useState({
+    address: "",
+    coordinates: { latitude: 0, longitude: 0 },
+  });
   const [itemDescription, setItemDescription] = useState("");
   const [weight, setWeight] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [notes, setNotes] = useState("");
 
   const handleSubmitOrder = () => {
-    if (!pickupLocation || !deliveryLocation || !itemDescription) {
+    if (!pickupLocation.address || !deliveryLocation.address || !itemDescription) {
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
@@ -46,8 +53,8 @@ export default function OrdersScreen() {
   };
 
   const resetForm = () => {
-    setPickupLocation("");
-    setDeliveryLocation("");
+    setPickupLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
+    setDeliveryLocation({ address: "", coordinates: { latitude: 0, longitude: 0 } });
     setItemDescription("");
     setWeight("");
     setDeliveryTime("");
@@ -82,28 +89,22 @@ export default function OrdersScreen() {
             <Text style={styles.sectionTitle}>Pickup & Delivery</Text>
             
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                Pickup Location <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter pickup address"
-                placeholderTextColor="#9CA3AF"
-                value={pickupLocation}
-                onChangeText={setPickupLocation}
+              <LocationInput
+                label="Pickup Location"
+                value={pickupLocation.address}
+                onLocationSelect={setPickupLocation}
+                required={true}
+                placeholder="Where should we pick up from?"
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>
-                Delivery Location <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter delivery address"
-                placeholderTextColor="#9CA3AF"
-                value={deliveryLocation}
-                onChangeText={setDeliveryLocation}
+              <LocationInput
+                label="Delivery Location"
+                value={deliveryLocation.address}
+                onLocationSelect={setDeliveryLocation}
+                required={true}
+                placeholder="Where should we deliver to?"
               />
             </View>
           </View>
