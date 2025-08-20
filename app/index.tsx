@@ -1,8 +1,25 @@
-import { useRouter } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useAuth } from "@clerk/clerk-expo";
+import { Redirect, useRouter } from "expo-router";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function WelcomeScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
+
+  // Show loading spinner while Clerk is loading
+  if (!isLoaded) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#1E3A8A" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // If user is signed in, redirect to protected area
+  if (isSignedIn) {
+    return <Redirect href="/(protected)" />;
+  }
   return (
     <View style={styles.container}>
       <View style={styles.content}>
@@ -116,5 +133,15 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: "white",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#1E3A8A",
+    fontWeight: "500",
   },
 });

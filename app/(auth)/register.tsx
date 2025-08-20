@@ -1,22 +1,29 @@
+import { useSignUp } from "@clerk/clerk-expo";
 import { AntDesign } from "@expo/vector-icons";
+import { useMutation } from "@tanstack/react-query";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type UserType = "customer" | "driver";
 
 export default function RegisterScreen() {
+  const { isLoaded, signUp, setActive } = useSignUp();
   const [userType, setUserType] = useState<UserType>("customer");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -25,16 +32,108 @@ export default function RegisterScreen() {
     phone: "",
   });
 
-  const handleRegister = () => {
-    // TODO: Implement Firebase authentication
-    console.log("Register pressed", { userType, ...formData });
-    // For now, navigate to protected area
-    router.replace("/(protected)");
-  };
+  const handleRegister = useMutation({
+    mutationFn: async () => {
+      if (!isLoaded) {
+        throw new Error("Clerk is not loaded");
+      }
+
+      if (
+        !formData.email ||
+        !formData.password ||
+        !formData.name ||
+        !formData.phone
+      ) {
+        throw new Error("Email, password, name, and phone are required");
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error("Passwords do not match");
+      }
+
+      // Create the user account
+      await signUp.create({
+        emailAddress: formData.email,
+        password: formData.password,
+        firstName: formData.name.split(" ")[0],
+        lastName: formData.name.split(" ").slice(1).join(" ") || "",
+      });
+
+      // Add user metadata for user type and phone
+      await signUp.update({
+        unsafeMetadata: {
+          userType,
+          phone: formData.phone,
+        },
+      });
+
+      // Prepare email verification
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      
+      // Move to verification step
+      setIsVerifying(true);
+    },
+    onSuccess: () => {
+      Alert.alert(
+        "Verification Code Sent",
+        "Please check your email for the verification code."
+      );
+    },
+    onError: (error: Error) => {
+      console.error("Registration error:", error);
+      Alert.alert("Error registering", error.message);
+    },
+  });
+
+  const handleVerify = useMutation({
+    mutationFn: async () => {
+      if (!isLoaded || !signUp) {
+        throw new Error("Clerk is not loaded");
+      }
+
+      if (!verificationCode) {
+        throw new Error("Please enter the verification code");
+      }
+
+      // Complete the sign up process
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
+
+      if (completeSignUp.status === "complete") {
+        await setActive({ session: completeSignUp.createdSessionId });
+        return completeSignUp;
+      } else {
+        throw new Error("Verification failed. Please try again.");
+      }
+    },
+    onSuccess: () => {
+      Alert.alert("Success", "Account created successfully!", [
+        {
+          text: "OK",
+          onPress: () => {
+            router.replace("/(protected)");
+          },
+        },
+      ]);
+    },
+    onError: (error: Error) => {
+      console.error("Verification error:", error);
+      Alert.alert("Error verifying email", error.message);
+    },
+  });
 
   const updateFormData = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator color="#1E3A8A" size="large" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -47,7 +146,13 @@ export default function RegisterScreen() {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={() => {
+                if (isVerifying) {
+                  setIsVerifying(false);
+                } else {
+                  router.back();
+                }
+              }}
             >
               <AntDesign
                 name="arrowleft"
@@ -55,12 +160,62 @@ export default function RegisterScreen() {
                 style={styles.backButtonText}
               />
             </TouchableOpacity>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join the Bird Eye community</Text>
+            <Text style={styles.title}>
+              {isVerifying ? "Verify Email" : "Create Account"}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isVerifying
+                ? "Enter the verification code sent to your email"
+                : "Join the Bird Eye community"}
+            </Text>
           </View>
 
-          {/* User Type Selection */}
-          <View style={styles.userTypeContainer}>
+          {isVerifying ? (
+            /* Verification Form */
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Verification Code</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter 6-digit code"
+                  placeholderTextColor="#9CA3AF"
+                  value={verificationCode}
+                  onChangeText={setVerificationCode}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.registerButton,
+                  handleVerify.isPending && styles.registerButtonDisabled,
+                ]}
+                onPress={() => handleVerify.mutate()}
+                disabled={handleVerify.isPending || !verificationCode}
+              >
+                {handleVerify.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.registerButtonText}>Verify Email</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={() => handleRegister.mutate()}
+                disabled={handleRegister.isPending}
+              >
+                <Text style={styles.resendButtonText}>
+                  Didn&apos;t receive code? Resend
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {/* User Type Selection */}
+              <View style={styles.userTypeContainer}>
             <Text style={styles.sectionTitle}>I want to</Text>
             <View style={styles.userTypeButtons}>
               <TouchableOpacity
@@ -183,7 +338,7 @@ export default function RegisterScreen() {
 
             <TouchableOpacity
               style={styles.registerButton}
-              onPress={handleRegister}
+              onPress={() => handleRegister.mutate()}
             >
               <Text style={styles.registerButtonText}>Create Account</Text>
             </TouchableOpacity>
@@ -196,6 +351,8 @@ export default function RegisterScreen() {
               <Text style={styles.signInText}>Sign In</Text>
             </TouchableOpacity>
           </View>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -336,5 +493,18 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
     fontSize: 16,
     fontWeight: "600",
+  },
+  registerButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+  },
+  resendButton: {
+    alignItems: "center",
+    marginTop: 15,
+    paddingVertical: 10,
+  },
+  resendButtonText: {
+    color: "#3B82F6",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

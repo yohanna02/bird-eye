@@ -1,28 +1,57 @@
+import { useSignIn } from "@clerk/clerk-expo";
 import AntDesign from "@expo/vector-icons/AntDesign";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
+  const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    // TODO: Implement Firebase authentication
-    console.log("Login pressed", { email, password });
-    // For now, navigate to protected area
-    router.replace("/(protected)");
-  };
+  const handleLogin = useMutation({
+    mutationFn: async () => {
+      if (!isLoaded) {
+        throw new Error("Clerk is not loaded");
+      }
+
+      if (!email || !password) {
+        throw new Error("Email and password are required");
+      }
+
+      const signInAttempt = await signIn.create({
+        identifier: email,
+        password,
+      });
+
+      if (signInAttempt.status === "complete") {
+        await setActive({ session: signInAttempt.createdSessionId });
+        return signInAttempt;
+      } else {
+        throw new Error("Sign in failed. Please check your credentials.");
+      }
+    },
+    onSuccess: () => {
+      router.replace("/(protected)");
+    },
+    onError: (error: Error) => {
+      console.error("Login error:", error);
+      Alert.alert("Error", error.message || "Invalid email or password");
+    }
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -36,7 +65,11 @@ export default function LoginScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <AntDesign name="arrowleft" size={24} style={styles.backButtonText} />
+            <AntDesign
+              name="arrowleft"
+              size={24}
+              style={styles.backButtonText}
+            />
           </TouchableOpacity>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to your Bird Eye account</Text>
@@ -73,8 +106,16 @@ export default function LoginScreen() {
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Sign In</Text>
+          <TouchableOpacity 
+            style={[styles.loginButton, handleLogin.isPending && styles.loginButtonDisabled]} 
+            onPress={() => handleLogin.mutate()}
+            disabled={handleLogin.isPending}
+          >
+            {handleLogin.isPending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.loginButtonText}>Sign In</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -185,5 +226,8 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
     fontSize: 16,
     fontWeight: "600",
+  },
+  loginButtonDisabled: {
+    backgroundColor: "#9CA3AF",
   },
 });
