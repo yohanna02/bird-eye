@@ -3,16 +3,16 @@ import { useMutation } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import React, { useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { CONFIG } from "../config/api";
 
@@ -25,6 +25,7 @@ interface LocationInputProps {
   }) => void;
   required?: boolean;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export default function LocationInput({
@@ -33,6 +34,7 @@ export default function LocationInput({
   onLocationSelect,
   required = false,
   placeholder = "Enter location",
+  disabled = false,
 }: LocationInputProps) {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -204,14 +206,22 @@ export default function LocationInput({
       </Text>
 
       <TouchableOpacity
-        style={styles.locationButton}
-        onPress={() => setShowLocationModal(true)}
+        style={[
+          styles.locationButton,
+          disabled && styles.locationButtonDisabled,
+        ]}
+        onPress={() => !disabled && setShowLocationModal(true)}
+        disabled={disabled}
       >
-        <MaterialIcons name="location-on" size={20} color="#6B7280" />
-        <Text style={[styles.locationText, !value && styles.placeholder]}>
+        <MaterialIcons name="location-on" size={20} color={disabled ? "#D1D5DB" : "#6B7280"} />
+        <Text style={[
+          styles.locationText,
+          !value && styles.placeholder,
+          disabled && styles.disabledText,
+        ]}>
           {value || placeholder}
         </Text>
-        <MaterialIcons name="keyboard-arrow-down" size={20} color="#6B7280" />
+        <MaterialIcons name="keyboard-arrow-down" size={20} color={disabled ? "#D1D5DB" : "#6B7280"} />
       </TouchableOpacity>
 
       <Modal
@@ -504,5 +514,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#1E3A8A",
+  },
+  locationButtonDisabled: {
+    backgroundColor: "#F9FAFB",
+    opacity: 0.6,
+  },
+  disabledText: {
+    color: "#9CA3AF",
   },
 });

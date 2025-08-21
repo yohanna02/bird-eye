@@ -31,5 +31,14 @@ export default defineSchema({
         specialInstructions: v.optional(v.string()),
         deliveryFee: v.number(),
         distanceKm: v.number(),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("assigned"),
+            v.literal("picked_up"),
+            v.literal("delivered")
+        ),
+        deliveryPin: v.string(),
+        pickupTime: v.optional(v.number()),
+        deliveryTime_actual: v.optional(v.number()),
     }).index("by_userId", ["userId"]),
 });

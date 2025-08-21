@@ -1,3 +1,4 @@
+import useUserType from "@/hooks/useUserType";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
@@ -6,8 +7,10 @@ import { ActivityIndicator, View } from "react-native";
 export default function ProtectedLayout() {
   const { isLoaded, isSignedIn } = useAuth();
 
+  const userType = useUserType();
+
   // Show loading while checking authentication
-  if (!isLoaded) {
+  if (!isLoaded || userType.status === "pending") {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#fff" />
@@ -57,6 +60,7 @@ export default function ProtectedLayout() {
             <Ionicons name="receipt-outline" size={size} color={color} />
           ),
         }}
+        redirect={userType.data !== "customer"}
       />
       <Tabs.Screen
         name="profile"

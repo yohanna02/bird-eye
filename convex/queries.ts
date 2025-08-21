@@ -43,7 +43,10 @@ export const getUserOrders = query({
             // For drivers: return orders without a driver assigned or assigned to this driver
             return ctx.db
                 .query("orders")
-                .filter((q) => q.or(q.eq(q.field("driverId"), undefined), q.eq(q.field("driverId"), user.subject)))
+                .filter((q) => q.or(
+                    q.eq(q.field("status"), "pending"), 
+                    q.eq(q.field("driverId"), user.subject)
+                ))
                 .collect();
         } else {
             // For customers: return orders created by this user
@@ -98,7 +101,13 @@ export const getSingleOrder = query({
 
         if (userType.type === "driver") {
             return ctx.db.query("orders")
-                .filter((q) => q.and(q.or(q.eq(q.field("driverId"), user.subject), q.eq(q.field("driverId"), undefined)), q.eq(q.field("trackingId"), args.trackingId))).first();
+                .filter((q) => q.and(
+                    q.or(
+                        q.eq(q.field("status"), "pending"), 
+                        q.eq(q.field("driverId"), user.subject)
+                    ), 
+                    q.eq(q.field("trackingId"), args.trackingId)
+                )).first();
         } else {
             return ctx.db.query("orders")
                 .filter((q) => q.and(q.eq(q.field("userId"), user.subject), q.eq(q.field("trackingId"), args.trackingId))).first();

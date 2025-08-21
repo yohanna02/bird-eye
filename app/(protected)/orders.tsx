@@ -6,6 +6,7 @@ import { useMutation as useConexMutation } from "convex/react";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Modal,
@@ -24,6 +25,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [trackingId, setTrackingId] = useState("");
+  const [deliveryPin, setDeliveryPin] = useState("");
 
   // Order Form State
   const [pickupLocation, setPickupLocation] = useState({
@@ -84,7 +86,7 @@ export default function OrdersScreen() {
         "BE" + Math.random().toString(36).substr(2, 8).toUpperCase();
       setTrackingId(generatedTrackingId);
 
-      await placeOrder({
+      const result = await placeOrder({
         deliveryFee: data?.fee ?? 0,
         deliveryLocation,
         pickupLocation,
@@ -95,6 +97,11 @@ export default function OrdersScreen() {
         specialInstructions: notes,
         weight: parseFloat(weight)
       });
+
+      // Set the delivery PIN from the result
+      if (result && result.deliveryPin) {
+        setDeliveryPin(result.deliveryPin);
+      }
 
       // Show confirmation modal
       setShowConfirmationModal(true);
@@ -120,6 +127,8 @@ export default function OrdersScreen() {
     setWeight("");
     setDeliveryTime("");
     setNotes("");
+    setTrackingId("");
+    setDeliveryPin("");
   };
 
   return (
@@ -152,6 +161,7 @@ export default function OrdersScreen() {
                 onLocationSelect={setPickupLocation}
                 required={true}
                 placeholder="Where should we pick up from?"
+                disabled={handleSubmitOrder.isPending}
               />
             </View>
 
@@ -162,6 +172,7 @@ export default function OrdersScreen() {
                 onLocationSelect={setDeliveryLocation}
                 required={true}
                 placeholder="Where should we deliver to?"
+                disabled={handleSubmitOrder.isPending}
               />
             </View>
           </View>
@@ -175,24 +186,33 @@ export default function OrdersScreen() {
                 Item Description <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  handleSubmitOrder.isPending && styles.inputDisabled,
+                ]}
                 placeholder="Describe what you're sending (e.g., Documents, Electronics, Food)"
                 placeholderTextColor="#9CA3AF"
                 value={itemDescription}
                 onChangeText={setItemDescription}
                 multiline
                 numberOfLines={3}
+                editable={!handleSubmitOrder.isPending}
               />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Weight (Optional)</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  handleSubmitOrder.isPending && styles.inputDisabled,
+                ]}
                 placeholder="e.g., 2 kg, 500g, Light"
                 placeholderTextColor="#9CA3AF"
                 value={weight}
                 onChangeText={setWeight}
+                editable={!handleSubmitOrder.isPending}
               />
             </View>
           </View>
@@ -204,24 +224,33 @@ export default function OrdersScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Preferred Delivery Time</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  handleSubmitOrder.isPending && styles.inputDisabled,
+                ]}
                 placeholder="e.g., ASAP, 2-4 PM, Morning"
                 placeholderTextColor="#9CA3AF"
                 value={deliveryTime}
                 onChangeText={setDeliveryTime}
+                editable={!handleSubmitOrder.isPending}
               />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Special Instructions</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  handleSubmitOrder.isPending && styles.inputDisabled,
+                ]}
                 placeholder="Any special handling instructions or notes for the driver"
                 placeholderTextColor="#9CA3AF"
                 value={notes}
                 onChangeText={setNotes}
                 multiline
                 numberOfLines={3}
+                editable={!handleSubmitOrder.isPending}
               />
             </View>
           </View>
@@ -248,11 +277,21 @@ export default function OrdersScreen() {
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={styles.submitButton}
+            style={[
+              styles.submitButton,
+              handleSubmitOrder.isPending && styles.submitButtonDisabled,
+            ]}
             onPress={() => handleSubmitOrder.mutate()}
+            disabled={handleSubmitOrder.isPending}
           >
-            <MaterialIcons name="send" size={20} color="white" />
-            <Text style={styles.submitButtonText}>Place Order</Text>
+            {handleSubmitOrder.isPending ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <MaterialIcons name="send" size={20} color="white" />
+            )}
+            <Text style={styles.submitButtonText}>
+              {handleSubmitOrder.isPending ? "Placing Order..." : "Place Order"}
+            </Text>
           </TouchableOpacity>
 
           <View style={{ height: 20 }} />
@@ -270,6 +309,17 @@ export default function OrdersScreen() {
               assigned shortly.
             </Text>
             <Text style={styles.trackingIdText}>Tracking ID: {trackingId}</Text>
+            
+            {/* Show Delivery PIN */}
+            {deliveryPin && (
+              <View style={styles.pinContainer}>
+                <Text style={styles.pinLabel}>Delivery PIN</Text>
+                <Text style={styles.pinText}>{deliveryPin}</Text>
+                <Text style={styles.pinSubtext}>
+                  Share this PIN with the driver to confirm delivery
+                </Text>
+              </View>
+            )}
 
             <View style={styles.confirmationButtons}>
               <TouchableOpacity
@@ -369,6 +419,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#F9FAFB",
   },
+  inputDisabled: {
+    backgroundColor: "#F3F4F6",
+    color: "#9CA3AF",
+    opacity: 0.7,
+  },
   textArea: {
     height: 80,
     textAlignVertical: "top",
@@ -422,6 +477,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     margin: 16,
     gap: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.7,
   },
   submitButtonText: {
     color: "white",
@@ -487,5 +546,32 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  pinContainer: {
+    backgroundColor: "#FEF3C7",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    alignItems: "center",
+  },
+  pinLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#92400E",
+    marginBottom: 8,
+  },
+  pinText: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#92400E",
+    letterSpacing: 8,
+    marginBottom: 8,
+  },
+  pinSubtext: {
+    fontSize: 12,
+    color: "#92400E",
+    textAlign: "center",
   },
 });

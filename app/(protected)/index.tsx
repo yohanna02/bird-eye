@@ -2,10 +2,12 @@ import { api } from "@/convex/_generated/api";
 import useUserType from "@/hooks/useUserType";
 import convexQueries from "@/utils/convexQueries";
 import { FontAwesome5, MaterialIcons } from "@expo/vector-icons";
+import { useMutation as useConvexMutation } from "convex/react";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -19,6 +21,32 @@ export default function HomeScreen() {
 
   const userType = useUserType();
   const driverOrders = convexQueries(api.queries.getUserOrders);
+  const deleteOrder = useConvexMutation(api.mutations.deleteOrderMutation);
+
+  const handleDeleteOrder = (trackingId: string) => {
+    Alert.alert(
+      "Delete Order",
+      "Are you sure you want to delete this order? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteOrder({ trackingId });
+              // The UI will automatically update due to the query refresh
+            } catch {
+              Alert.alert("Error", "Failed to delete order. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   if (userType.status === "pending" || driverOrders.status === "pending") {
     return (
@@ -90,10 +118,9 @@ export default function HomeScreen() {
           <View style={styles.ordersListView}>
             {driverOrders.data?.length ? (
               driverOrders.data.map((order) => (
-                <TouchableOpacity 
+                <View 
                   key={order._id} 
                   style={styles.orderCardVertical}
-                  onPress={() => router.push(`/order-details?trackingId=${order.trackingId}`)}
                 >
                   <View style={styles.orderHeader}>
                     <Text style={styles.orderIdText}>
@@ -103,9 +130,11 @@ export default function HomeScreen() {
                       style={[
                         styles.statusBadge,
                         {
-                          backgroundColor: !order.driverId
-                            ? "#FEF3C7"
-                            : "#D1FAE5",
+                          backgroundColor: 
+                            order.status === "pending" ? "#FEF3C7" :
+                            order.status === "assigned" ? "#DBEAFE" :
+                            order.status === "picked_up" ? "#F3E8FF" :
+                            "#D1FAE5",
                         },
                       ]}
                     >
@@ -113,11 +142,18 @@ export default function HomeScreen() {
                         style={[
                           styles.statusText,
                           {
-                            color: !order.driverId ? "#92400E" : "#065F46",
+                            color: 
+                              order.status === "pending" ? "#92400E" :
+                              order.status === "assigned" ? "#1E40AF" :
+                              order.status === "picked_up" ? "#7C3AED" :
+                              "#065F46",
                           },
                         ]}
                       >
-                        {order.driverId ? "Assigned" : "Unassigned"}
+                        {order.status === "pending" ? "Pending" :
+                         order.status === "assigned" ? "Assigned" :
+                         order.status === "picked_up" ? "Picked Up" :
+                         "Delivered"}
                       </Text>
                     </View>
                   </View>
@@ -163,12 +199,27 @@ export default function HomeScreen() {
                   </View>
 
                   <View style={styles.orderActions}>
-                    <View style={styles.viewDetailsButton}>
+                    <TouchableOpacity 
+                      style={styles.viewDetailsButton}
+                      onPress={() => router.push(`/order-details?trackingId=${order.trackingId}`)}
+                    >
                       <Text style={styles.viewDetailsButtonText}>View Details</Text>
                       <MaterialIcons name="arrow-forward" size={16} color="#1E3A8A" />
-                    </View>
+                    </TouchableOpacity>
+                    
+                    {/* Show delete button for customers with orders that haven't been picked up */}
+                    {userType.data === "customer" && 
+                     (order.status === "pending" || order.status === "assigned") && (
+                      <TouchableOpacity 
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteOrder(order.trackingId)}
+                      >
+                        <MaterialIcons name="delete" size={16} color="#EF4444" />
+                        <Text style={styles.deleteButtonText}>Delete</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                </TouchableOpacity>
+                </View>
               ))
             ) : (
               <View style={styles.emptyOrdersContainer}>
@@ -409,6 +460,8 @@ const styles = StyleSheet.create({
   },
   orderActions: {
     marginTop: "auto",
+    flexDirection: "row",
+    gap: 12,
   },
   acceptButton: {
     backgroundColor: "#10B981",
@@ -438,17 +491,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 8,
     gap: 8,
+    flex: 1,
   },
   viewDetailsButtonText: {
     color: "#1E3A8A",
     fontSize: 14,
     fontWeight: "600",
   },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    gap: 4,
+  },
+  deleteButtonText: {
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   emptyOrdersContainer: {
     alignItems: "center",
     justifyContent: "center",
     padding: 40,
-    width: 280,
+    width: "100%",
   },
   emptyOrdersText: {
     fontSize: 16,

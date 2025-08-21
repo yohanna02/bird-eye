@@ -1,3 +1,4 @@
+import PinInput from "@/components/PinInput";
 import { api } from "@/convex/_generated/api";
 import useUserType from "@/hooks/useUserType";
 import convexQueries from "@/utils/convexQueries";
@@ -7,14 +8,15 @@ import { useMutation } from "convex/react";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function OrderDetailsScreen() {
@@ -26,7 +28,12 @@ export default function OrderDetailsScreen() {
     trackingId: trackingId || "",
   });
   const acceptOrder = useMutation(api.mutations.acceptOrderMutation);
+  const markPickedUp = useMutation(api.mutations.markOrderPickedUpMutation);
+  const confirmDelivery = useMutation(api.mutations.confirmDeliveryMutation);
+  const deleteOrder = useMutation(api.mutations.deleteOrderMutation);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isMarkingPickup, setIsMarkingPickup] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
 
   const { isLoaded, isSignedIn } = useAuth();
 
@@ -102,6 +109,74 @@ export default function OrderDetailsScreen() {
     );
   };
 
+  const handleMarkPickedUp = async () => {
+    Alert.alert(
+      "Confirm Pickup",
+      "Have you picked up the package from the pickup location?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Yes, Picked Up",
+          style: "default",
+          onPress: async () => {
+            try {
+              setIsMarkingPickup(true);
+              await markPickedUp({ trackingId: trackingId || "" });
+              Alert.alert("Success", "Order marked as picked up!");
+            } catch (error) {
+              Alert.alert("Error", "Failed to mark as picked up. Please try again.");
+              console.error("Error marking pickup:", error);
+            } finally {
+              setIsMarkingPickup(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeliveryConfirmation = async (pin: string) => {
+    try {
+      await confirmDelivery({ trackingId: trackingId || "", pin });
+      setShowPinModal(false);
+      Alert.alert("Success", "Delivery confirmed successfully!");
+      router.back();
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to confirm delivery. Please try again.");
+      console.error("Error confirming delivery:", error);
+    }
+  };
+
+  const handleDeleteOrder = () => {
+    Alert.alert(
+      "Delete Order",
+      "Are you sure you want to delete this order? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteOrder({ trackingId: trackingId || "" });
+              Alert.alert("Success", "Order deleted successfully!");
+              router.back();
+            } catch (error: any) {
+              Alert.alert("Error", error.message || "Failed to delete order. Please try again.");
+              console.error("Error deleting order:", error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -117,7 +192,11 @@ export default function OrderDetailsScreen() {
               style={[
                 styles.statusBadge,
                 {
-                  backgroundColor: !order.driverId ? "#FEF3C7" : "#D1FAE5",
+                  backgroundColor: 
+                    order.status === "pending" ? "#FEF3C7" :
+                    order.status === "assigned" ? "#DBEAFE" :
+                    order.status === "picked_up" ? "#F3E8FF" :
+                    "#D1FAE5",
                 },
               ]}
             >
@@ -125,11 +204,18 @@ export default function OrderDetailsScreen() {
                 style={[
                   styles.statusText,
                   {
-                    color: !order.driverId ? "#92400E" : "#065F46",
+                    color: 
+                      order.status === "pending" ? "#92400E" :
+                      order.status === "assigned" ? "#1E40AF" :
+                      order.status === "picked_up" ? "#7C3AED" :
+                      "#065F46",
                   },
                 ]}
               >
-                {order.driverId ? "Assigned" : "Unassigned"}
+                {order.status === "pending" ? "Pending" :
+                 order.status === "assigned" ? "Assigned" :
+                 order.status === "picked_up" ? "Picked Up" :
+                 "Delivered"}
               </Text>
             </View>
           </View>
@@ -229,36 +315,120 @@ export default function OrderDetailsScreen() {
         </View>
 
         {/* Driver Actions */}
-        {userType.data === "driver" && !order.driverId && (
-          <TouchableOpacity
-            style={[
-              styles.acceptButton,
-              isAccepting && styles.acceptButtonDisabled,
-            ]}
-            onPress={handleAcceptOrder}
-            disabled={isAccepting}
-          >
-            {isAccepting ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <MaterialIcons name="check-circle" size={24} color="white" />
+        {userType.data === "driver" && (
+          <View style={styles.driverActions}>
+            {/* Accept Order - Only if order is pending */}
+            {order.status === "pending" && (
+              <TouchableOpacity
+                style={[
+                  styles.acceptButton,
+                  isAccepting && styles.acceptButtonDisabled,
+                ]}
+                onPress={handleAcceptOrder}
+                disabled={isAccepting}
+              >
+                {isAccepting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <MaterialIcons name="check-circle" size={24} color="white" />
+                )}
+                <Text style={styles.acceptButtonText}>
+                  {isAccepting ? "Accepting..." : "Accept Order"}
+                </Text>
+              </TouchableOpacity>
             )}
-            <Text style={styles.acceptButtonText}>
-              {isAccepting ? "Accepting..." : "Accept Order"}
-            </Text>
-          </TouchableOpacity>
+
+            {/* Mark as Picked Up - Only if order is assigned to this driver */}
+            {order.status === "assigned" && order.driverId && (
+              <TouchableOpacity
+                style={[
+                  styles.pickupButton,
+                  isMarkingPickup && styles.pickupButtonDisabled,
+                ]}
+                onPress={handleMarkPickedUp}
+                disabled={isMarkingPickup}
+              >
+                {isMarkingPickup ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <MaterialIcons name="inventory" size={24} color="white" />
+                )}
+                <Text style={styles.pickupButtonText}>
+                  {isMarkingPickup ? "Marking..." : "Mark as Picked Up"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Confirm Delivery - Only if order is picked up */}
+            {order.status === "picked_up" && order.driverId && (
+              <TouchableOpacity
+                style={styles.deliveryButton}
+                onPress={() => setShowPinModal(true)}
+              >
+                <MaterialIcons name="local-shipping" size={24} color="white" />
+                <Text style={styles.deliveryButtonText}>Confirm Delivery</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Order Completed */}
+            {order.status === "delivered" && (
+              <View style={styles.completedContainer}>
+                <MaterialIcons name="check-circle" size={24} color="#10B981" />
+                <Text style={styles.completedText}>Order Completed</Text>
+              </View>
+            )}
+          </View>
         )}
 
         {/* Customer Actions */}
         {userType.data === "customer" && (
           <View style={styles.customerActions}>
-            <TouchableOpacity style={styles.trackButton}>
-              <MaterialIcons name="location-on" size={20} color="#1E3A8A" />
-              <Text style={styles.trackButtonText}>Track Order</Text>
-            </TouchableOpacity>
+            {/* Show delivery PIN */}
+            {order.deliveryPin && order.status !== "delivered" && (
+              <View style={styles.pinContainer}>
+                <Text style={styles.pinLabel}>Delivery PIN</Text>
+                <Text style={styles.pinText}>{order.deliveryPin}</Text>
+                <Text style={styles.pinSubtext}>
+                  Share this PIN with the driver to confirm delivery
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.customerButtonsContainer}>
+              <TouchableOpacity style={styles.trackButton}>
+                <MaterialIcons name="location-on" size={20} color="#1E3A8A" />
+                <Text style={styles.trackButtonText}>Track Order</Text>
+              </TouchableOpacity>
+
+              {/* Delete Order - Only if order hasn't been picked up */}
+              {(order.status === "pending" || order.status === "assigned") && (
+                <TouchableOpacity style={styles.deleteOrderButton} onPress={handleDeleteOrder}>
+                  <MaterialIcons name="delete" size={20} color="#EF4444" />
+                  <Text style={styles.deleteOrderButtonText}>Delete Order</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
       </ScrollView>
+
+      {/* PIN Modal for Delivery Confirmation */}
+      <Modal
+        visible={showPinModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPinModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <PinInput
+              onPinComplete={handleDeliveryConfirmation}
+              onCancel={() => setShowPinModal(false)}
+              title="Enter Delivery PIN"
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -431,10 +601,113 @@ const styles = StyleSheet.create({
   acceptButtonDisabled: {
     backgroundColor: "#9CA3AF",
   },
-  customerActions: {
-    flexDirection: "row",
+  driverActions: {
     marginHorizontal: 20,
     marginBottom: 20,
+  },
+  pickupButton: {
+    backgroundColor: "#7C3AED",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  pickupButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  pickupButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+  },
+  deliveryButton: {
+    backgroundColor: "#EF4444",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  deliveryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  completedContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    backgroundColor: "#F0FDF4",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    gap: 8,
+  },
+  completedText: {
+    color: "#10B981",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  pinContainer: {
+    backgroundColor: "#FEF3C7",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    alignItems: "center",
+  },
+  pinLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#92400E",
+    marginBottom: 8,
+  },
+  pinText: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#92400E",
+    letterSpacing: 8,
+    marginBottom: 8,
+  },
+  pinSubtext: {
+    fontSize: 12,
+    color: "#92400E",
+    textAlign: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    margin: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  customerActions: {
+    flexDirection: "column",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    gap: 12,
+  },
+  customerButtonsContainer: {
+    flexDirection: "row",
     gap: 12,
   },
   trackButton: {
@@ -451,6 +724,23 @@ const styles = StyleSheet.create({
   },
   trackButtonText: {
     color: "#1E3A8A",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  deleteOrderButton: {
+    backgroundColor: "#FEF2F2",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FECACA",
+    gap: 8,
+  },
+  deleteOrderButtonText: {
+    color: "#EF4444",
     fontSize: 14,
     fontWeight: "600",
   },
