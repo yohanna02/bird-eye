@@ -136,7 +136,7 @@ export default function OrderDetailsScreen() {
 
           <View style={styles.priceSection}>
             <Text style={styles.priceLabel}>Delivery Fee</Text>
-            <Text style={styles.priceValue}>₦{order.deliveryFee + 50}</Text>
+            <Text style={styles.priceValue}>₦{order.deliveryFee + 500}</Text>
           </View>
         </View>
 

@@ -55,6 +55,29 @@ export const getUserOrders = query({
     }
 });
 
+export const getUserProfile = query({
+    handler: async (ctx) => {
+        const user = await ctx.auth.getUserIdentity();
+
+        if (!user) {
+            throw new Error("Unauthorized");
+        }
+
+        const userType = await ctx.db
+            .query("userType")
+            .filter((q) => q.eq(q.field("userId"), user.subject))
+            .first();
+
+        return {
+            name: user.name || "User",
+            email: user.email || "",
+            pictureUrl: user.pictureUrl || "",
+            userType: userType?.type || "customer",
+            userId: user.subject,
+        };
+    },
+});
+
 export const getSingleOrder = query({
     args: { trackingId: v.string() },
     handler: async (ctx, args) => {

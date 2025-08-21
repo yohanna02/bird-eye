@@ -1,7 +1,7 @@
 import { api } from "@/convex/_generated/api";
 import useUserType from "@/hooks/useUserType";
 import convexQueries from "@/utils/convexQueries";
-import { MaterialIcons } from "@expo/vector-icons";
+import { FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -151,15 +151,14 @@ export default function HomeScreen() {
                       </Text>
                     </View>
 
-                    <View style={styles.orderDetailRow}>
-                      <MaterialIcons
-                        name="attach-money"
-                        size={16}
-                        color="#6B7280"
-                      />
-                      <Text style={styles.orderDetailText}>
-                        ₦{order.deliveryFee + 50}
-                      </Text>
+                    <View style={styles.feeContainer}>
+                      <View style={styles.feeIconContainer}>
+                        <FontAwesome5 name="money-bill-wave" size={14} color="#10B981" />
+                      </View>
+                      <View style={styles.feeDetailsContainer}>
+                        <Text style={styles.feeLabel}>Delivery Fee</Text>
+                        <Text style={styles.feeAmount}>₦{order.deliveryFee + 500}</Text>
+                      </View>
                     </View>
                   </View>
 
@@ -376,6 +375,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
     flex: 1,
+  },
+  feeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    marginTop: 4,
+  },
+  feeIconContainer: {
+    backgroundColor: "#DCFCE7",
+    padding: 6,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  feeDetailsContainer: {
+    flex: 1,
+  },
+  feeLabel: {
+    fontSize: 12,
+    color: "#059669",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  feeAmount: {
+    fontSize: 16,
+    color: "#047857",
+    fontWeight: "700",
   },
   orderActions: {
     marginTop: "auto",
