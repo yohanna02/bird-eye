@@ -41,3 +41,5 @@ app-example
 lib/firebaseConfig.ts
 
 .env.local
+
+yarn.lock
